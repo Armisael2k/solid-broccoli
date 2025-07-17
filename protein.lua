@@ -70,4 +70,98 @@ local function teleportToPad(username)
     end
 end
 
-print(teleportToPad("m0tar_EQmmO5G9laX2R"))
+-- Function to equip gun
+local function equipGun()
+    local player = game.Players.LocalPlayer
+    local backpack = player.Backpack
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- First, unequip any currently equipped tool
+    if humanoid then
+        humanoid:UnequipTools()
+    end
+    
+    local tools = {}
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            table.insert(tools, item)
+        end
+    end
+    
+    if #tools >= 2 then
+        local toolToEquip = tools[2]
+        
+        if toolToEquip:GetAttribute("Cooldown") then
+            toolToEquip:SetAttribute("Cooldown", 0.05)
+        end
+        
+        humanoid:EquipTool(toolToEquip)
+    else
+        print("Warning: No tool available in slot 2")
+    end
+end
+
+-- Function to get enemy team based on local player's team
+local function getEnemyTeam()
+    local localPlayer = game.Players.LocalPlayer
+    local localPlayerTeam = getTeam(localPlayer.Name)
+    
+    if localPlayerTeam == "team1" then
+        return config.team2
+    elseif localPlayerTeam == "team2" then
+        return config.team1
+    else
+        return nil
+    end
+end
+
+-- Function to shoot and hit enemies
+local function shootAtEnemies()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    
+    if not character then
+        print("Warning: No character found")
+        return
+    end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then
+        print("Warning: No tool equipped")
+        return
+    end
+    
+    local enemyTeam = getEnemyTeam()
+    if not enemyTeam then
+        print("Warning: Could not determine enemy team")
+        return
+    end
+    
+    local enemyPlayers = {}
+    for _, enemyName in ipairs(enemyTeam) do
+        local enemyPlayer = game.Players:FindFirstChild(enemyName)
+        if enemyPlayer and enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(enemyPlayers, enemyPlayer)
+        end
+    end
+    
+    if #enemyPlayers == 0 then
+        print("Warning: No enemy players found")
+        return
+    end
+    
+    for _, enemyPlayer in ipairs(enemyPlayers) do
+        if enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPosition = enemyPlayer.Character.HumanoidRootPart.Position
+            
+            tool:Activate()
+            print("Shot at enemy:", enemyPlayer.Name)
+            wait(0.1)
+        end
+    end
+    
+    print("Finished shooting at enemies")
+end
+
+shootAtEnemies();
