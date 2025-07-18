@@ -1,4 +1,4 @@
-local url = "https://raw.githubusercontent.com/Armisael2k/solid-broccoli/refs/heads/refresh/brocco_1.lua"
+local url = "https://raw.githubusercontent.com/Armisael2k/solid-broccoli/refs/heads/main/brocco_1.lua"
 loadstring(game:HttpGet(url))()
 
 -- Function to get team name for a given username
