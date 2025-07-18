@@ -1,8 +1,6 @@
 local url = "https://raw.githubusercontent.com/Armisael2k/solid-broccoli/refs/heads/refresh/brocco_1.lua"
 loadstring(game:HttpGet(url))()
 
-print(config)
-
 -- Function to get team name for a given username
 local function getTeam(username)
     if not config then
@@ -102,20 +100,6 @@ local function equipGun()
     end
 end
 
--- Function to get enemy team based on local player's team
-local function getEnemyTeam()
-    local localPlayer = game.Players.LocalPlayer
-    local localPlayerTeam = getTeam(localPlayer.Name)
-    
-    if localPlayerTeam == "team1" then
-        return config.team2
-    elseif localPlayerTeam == "team2" then
-        return config.team1
-    else
-        return nil
-    end
-end
-
 -- Function to shoot and hit enemies
 local function shootAtEnemies()
     local player = game.Players.LocalPlayer
@@ -131,18 +115,19 @@ local function shootAtEnemies()
         print("Warning: No tool equipped")
         return
     end
-    
-    local enemyTeam = getEnemyTeam()
-    if not enemyTeam then
-        print("Warning: Could not determine enemy team")
+
+    local localPlayerTeam = player.Team
+    if not localPlayerTeam then
+        print("Warning: Local player has no Team")
         return
     end
     
     local enemyPlayers = {}
-    for _, enemyName in ipairs(enemyTeam) do
-        local enemyPlayer = game.Players:FindFirstChild(enemyName)
-        if enemyPlayer and enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            table.insert(enemyPlayers, enemyPlayer)
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Team and otherPlayer.Team ~= localPlayerTeam then
+            if otherPlayer.Character and otherPlayer.Character.Parent == workspace and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(enemyPlayers, otherPlayer)
+            end
         end
     end
     
@@ -151,11 +136,24 @@ local function shootAtEnemies()
         return
     end
     
+    print("Found", #enemyPlayers, "enemy players. Starting to shoot...")
+    
     for _, enemyPlayer in ipairs(enemyPlayers) do
         if enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            print("Targeting enemy:", enemyPlayer.Name)
+            
             local targetPosition = enemyPlayer.Character.HumanoidRootPart.Position
             
             tool:Activate()
+            
+            local shootRemote = game.ReplicatedStorage.Remotes.ShootGun
+            if shootRemote then
+                local characterRayOrigin = character.HumanoidRootPart.Position
+                shootRemote:FireServer(characterRayOrigin, targetPosition, enemyPlayer.Character.HumanoidRootPart, targetPosition)
+            else
+                print("Warning: Shoot remote not found")
+            end
+            
             print("Shot at enemy:", enemyPlayer.Name)
             wait(0.1)
         end
@@ -164,4 +162,72 @@ local function shootAtEnemies()
     print("Finished shooting at enemies")
 end
 
-shootAtEnemies();
+-- Function to check if player is in match (has tool 2)
+local function isInMatch()
+    local player = game.Players.LocalPlayer
+    local backpack = player.Backpack
+    
+    local tools = {}
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            table.insert(tools, item)
+        end
+    end
+    
+    return #tools >= 2
+end
+
+-- Main game loop
+local function startMainLoop()
+    print("Starting main game loop...")
+    
+    -- Loop for teleportToPad (runs always, every 0.5 seconds)
+    spawn(function()
+        while true do
+            local localPlayer = game.Players.LocalPlayer
+            if localPlayer and localPlayer.Name then
+                teleportToPad(localPlayer.Name)
+            end
+            wait(0.5)
+        end
+    end)
+    
+    -- Loop for equipGun (checks isInMatch internally, every 1 second)
+    spawn(function()
+        while true do
+            if isInMatch() then
+                equipGun()
+                wait(1)
+            else
+                wait(1) -- Wait when not in match to avoid excessive checking
+            end
+        end
+    end)
+    
+    -- Loop for shootAtEnemies (checks isInMatch internally, every 0.05 seconds)
+    spawn(function()
+        while true do
+            if isInMatch() then
+                local player = game.Players.LocalPlayer
+                local seasonLevel = player:GetAttribute("SeasonLevel") or 0
+                
+                if seasonLevel <= 15 then
+                    shootAtEnemies()
+                    wait(0.05)
+                else
+                    wait(10) -- Wait longer when season level is too high
+                end
+            else
+                wait(0.5) -- Wait longer when not in match to save resources
+            end
+        end
+    end)
+end
+
+-- Start the main loop
+startMainLoop()
+
+print("Script execution completed. Main loop is now running.")
+print("- TeleportToPad: every 0.5 seconds (always)")
+print("- EquipGun: every 1 second (when in match)")
+print("- ShootAtEnemies: every 0.05 seconds (when in match)")
