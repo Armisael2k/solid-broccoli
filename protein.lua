@@ -23,50 +23,60 @@ local function getTeam(username)
     return nil
 end
 
+-- Hardcoded positions for each game type and team
+local padPositions = {
+    ["1v1"] = {
+        team1 = Vector3.new(37.4428215, -117.451309, 57.7967148),
+        team2 = Vector3.new(31.7845898, -117.451309, 57.7968063)
+    },
+    ["2v2"] = {
+        team1 = Vector3.new(46.025692, -117.451309, 57.3252487),
+        team2 = Vector3.new(52.5325279, -117.451309, 57.3252716)
+    },
+    ["3v3"] = {
+        team1 = Vector3.new(62.0584984, -117.451309, 56.8536682),
+        team2 = Vector3.new(69.6026001, -117.451309, 56.8536606)
+    },
+    ["4v4"] = {
+        team1 = Vector3.new(88.5118713, -117.451309, 56.3821526),
+        team2 = Vector3.new(80.0244141, -117.451309, 56.3820496)
+    }
+}
+
 -- Teleport to lobby pads
 local function teleportToPad(username)
     local team = getTeam(username)
-    if team then
-        local lobby = workspace:FindFirstChild("Lobby")
-        if not lobby then
-            warn("No 'Lobby' found in Workspace")
-            return
-        end
-
-        local sideFolder = lobby:FindFirstChild("DuelRingsGroup")
-        if not sideFolder then
-            warn("No 'DuelRingsGroup' found in Lobby")
-            return
-        end
-
-        local ringFolder = sideFolder:FindFirstChild("DuelRing_" .. config.type)
-        if not ringFolder then
-            warn("No 'DuelRing_" .. config.type .. "' found in 'DuelRingsGroup'")
-            return
-        end
-
-        local pads = {}
-        for _, child in ipairs(ringFolder:GetChildren()) do
-            if child:IsA("Model") and child.Name == "DuelPad" then
-                table.insert(pads, child)
-            end
-        end
-
-        if #pads == 0 then
-            warn("No DuelPads found in the ring")
-            return
-        end
-
-        local padIx = team == "team1" and 1 or 2
-        local pad = pads[padIx]
-        if pad and pad.PrimaryPart then
-            local teleportPosition = pad.PrimaryPart.Position
-            game.Players.LocalPlayer.Character:MoveTo(teleportPosition)
-        else
-            warn("No valid pad found for team" .. padIx)
-        end
+    if not team then
+        -- warn("No team found for username: " .. username)
+        return
+    end
+    
+    -- Get the position for the current game type and team
+    local gameType = config and config.type
+    if not gameType then
+        -- warn("No game type found in config")
+        return
+    end
+    
+    local positions = padPositions[gameType]
+    if not positions then
+        -- warn("No positions found for game type: " .. gameType)
+        return
+    end
+    
+    local targetPosition = positions[team]
+    if not targetPosition then
+        -- warn("No position found for team: " .. team .. " in game type: " .. gameType)
+        return
+    end
+    
+    -- Teleport to the target position
+    local character = game.Players.LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+        -- print("Teleported to", team, "pad in", gameType, "at position:", targetPosition)
     else
-      warn("No team found for username: " .. username)
+        -- warn("No character or HumanoidRootPart found")
     end
 end
 
@@ -104,101 +114,124 @@ end
 
 -- Function to shoot and hit enemies
 local function shootAtEnemies()
-    -- print("DEBUG: shootAtEnemies function called")
-    
     local player = game.Players.LocalPlayer
     local character = player.Character
     
     if not character then
-        -- print("DEBUG: No character found")
+        -- print("FAIL: No character found")
         return
     end
-    -- print("DEBUG: Character found:", character.Name)
     
     local tool = character:FindFirstChildOfClass("Tool")
     if not tool then
-        -- print("DEBUG: No tool equipped")
+        -- print("FAIL: No tool equipped")
         return
     end
-    -- print("DEBUG: Tool equipped:", tool.Name)
 
     local localPlayerTeam = player.Team
     if not localPlayerTeam then
-        -- print("DEBUG: Local player has no Team")
+        -- print("FAIL: Local player has no Team")
         return
     end
-    -- print("DEBUG: Local player team:", localPlayerTeam.Name)
     
-    -- print("DEBUG: Searching for enemy players...")
     local enemyPlayers = {}
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        -- print("DEBUG: Checking player:", otherPlayer.Name)
-        -- print("  - Player team:", otherPlayer.Team and otherPlayer.Team.Name or "No team")
-        -- print("  - Same player?", otherPlayer == player)
-        -- print("  - Has team?", otherPlayer.Team ~= nil)
-        -- print("  - Different team?", otherPlayer.Team and otherPlayer.Team ~= localPlayerTeam)
-        
         if otherPlayer ~= player and otherPlayer.Team and otherPlayer.Team ~= localPlayerTeam then
-            -- print("  - This is an enemy! Checking character...")
-            -- print("  - Has character?", otherPlayer.Character ~= nil)
-            -- print("  - Character parent is workspace?", otherPlayer.Character and otherPlayer.Character.Parent == workspace)
-            -- print("  - Has HumanoidRootPart?", otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") ~= nil)
-            
             if otherPlayer.Character and otherPlayer.Character.Parent == workspace and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 table.insert(enemyPlayers, otherPlayer)
-                -- print("  - Enemy added to list!")
-            else
-                -- print("  - Enemy has invalid character")
             end
-        else
-            -- print("  - Not an enemy")
         end
     end
     
-    -- print("DEBUG: Total enemy players found:", #enemyPlayers)
-    
     if #enemyPlayers == 0 then
-        -- print("DEBUG: No enemy players found")
+        -- print("FAIL: No enemy players found")
         return
     end
     
-    -- print("Found", #enemyPlayers, "enemy players. Starting to shoot...")
+    -- print("SUCCESS: Found", #enemyPlayers, "enemies, attempting to shoot...")
     
     for _, enemyPlayer in ipairs(enemyPlayers) do
-        -- print("DEBUG: Processing enemy:", enemyPlayer.Name)
         if enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            -- print("Targeting enemy:", enemyPlayer.Name)
-            
             local targetPosition = enemyPlayer.Character.HumanoidRootPart.Position
-            -- print("DEBUG: Target position:", targetPosition)
+            
+            -- Check if tool is still equipped before shooting
+            local currentTool = character:FindFirstChildOfClass("Tool")
+            if not currentTool then
+                -- print("FAIL: Tool was unequipped during shooting loop")
+                return
+            end
             
             tool:Activate()
-            -- print("DEBUG: Tool activated")
             
             local shootRemote = game.ReplicatedStorage.Remotes.ShootGun
             if shootRemote then
                 local characterRayOrigin = character.HumanoidRootPart.Position
-                -- print("DEBUG: Firing remote - Origin:", characterRayOrigin, "Target:", targetPosition)
                 shootRemote:FireServer(characterRayOrigin, targetPosition, enemyPlayer.Character.HumanoidRootPart, targetPosition)
-                -- print("DEBUG: Remote fired successfully")
+                -- print("SHOT: Fired at", enemyPlayer.Name)
             else
-                -- print("Warning: Shoot remote not found")
+                -- print("FAIL: Shoot remote not found")
+                return
             end
             
-            -- print("Shot at enemy:", enemyPlayer.Name)
             wait(0.1)
         else
-            -- print("DEBUG: Enemy", enemyPlayer.Name, "has invalid character or HumanoidRootPart")
+            -- print("SKIP: Enemy", enemyPlayer.Name, "has invalid character")
         end
     end
     
-    -- print("Finished shooting at enemies")
+    -- print("COMPLETE: Finished shooting sequence")
 end
 
 -- Function to check if player is in match (has tool 2)
 local function isInMatch()
     return (game.Players.LocalPlayer:GetAttribute("Match") or 0) > 0
 end
+
+-- Function to clean up map folders
+local function initCleanup()
+    print("Starting map cleanup...")
+    
+    local hiddenMaps = game.ReplicatedStorage:FindFirstChild("HiddenMaps")
+    if not hiddenMaps then
+        print("HiddenMaps folder not found")
+        return
+    end
+    
+    local foldersToDelete = {"Borders", "Environment"}
+    local deletedCount = 0
+    
+    -- Iterate through all map folders
+    for _, mapFolder in pairs(hiddenMaps:GetChildren()) do
+        if mapFolder:IsA("Folder") then
+            print("Checking map:", mapFolder.Name)
+            
+            -- Delete specified folders within each map
+            for _, folderName in ipairs(foldersToDelete) do
+                local targetFolder = mapFolder:FindFirstChild(folderName)
+                if targetFolder then
+                    targetFolder:Destroy()
+                    deletedCount = deletedCount + 1
+                    print("Deleted:", mapFolder.Name .. "." .. folderName)
+                end
+            end
+        end
+    end
+    
+    -- print("Map cleanup completed. Deleted", deletedCount, "folders.")
+
+    if cansetfpscap then
+	   	setfpscap(15)
+	  end
+    -- game:GetService("RunService"):Set3dRenderingEnabled(false)
+
+    print("Frame rate capped to 15 FPS and 3D rendering disabled.")
+end
+
+-- Schedule cleanup after 15 seconds
+spawn(function()
+    -- wait(15)
+    -- initCleanup()
+end)
 
 -- Main game loop
 local function startMainLoop()
