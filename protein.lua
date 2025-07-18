@@ -210,7 +210,7 @@ local function shootAtEnemies()
                 return
             end
             
-            wait(0.1)
+            wait(0.2)
         else
             -- print("SKIP: Enemy", enemyPlayer.Name, "has invalid character")
         end
@@ -258,7 +258,7 @@ local function startMainLoop()
                 
                 if seasonLevel <= 15 then
                     shootAtEnemies()
-                    wait(0.1)
+                    wait(0.2)
                 else
                     wait(10) -- Wait longer when season level is too high
                 end
