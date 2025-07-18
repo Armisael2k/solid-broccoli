@@ -43,8 +43,30 @@ local padPositions = {
     }
 }
 
+-- Function to check if player is alive
+local function isPlayerAlive()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    
+    if not character then
+        return false
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then
+        return false
+    end
+    
+    return humanoid.Health > 0
+end
+
 -- Teleport to lobby pads
 local function teleportToPad(username)
+    -- Don't teleport if player is dead
+    if not isPlayerAlive() then
+        return
+    end
+    
     local team = getTeam(username)
     if not team then
         -- warn("No team found for username: " .. username)
@@ -82,6 +104,11 @@ end
 
 -- Function to equip gun
 local function equipGun()
+    -- Don't equip if player is dead
+    if not isPlayerAlive() then
+        return
+    end
+    
     local player = game.Players.LocalPlayer
     local backpack = player.Backpack
     local character = player.Character or player.CharacterAdded:Wait()
@@ -114,6 +141,11 @@ end
 
 -- Function to shoot and hit enemies
 local function shootAtEnemies()
+    -- Don't shoot if player is dead
+    if not isPlayerAlive() then
+        return
+    end
+    
     local player = game.Players.LocalPlayer
     local character = player.Character
     
@@ -161,6 +193,11 @@ local function shootAtEnemies()
                 return
             end
             
+            -- Check if player is still alive before each shot
+            if not isPlayerAlive() then
+                return
+            end
+            
             tool:Activate()
             
             local shootRemote = game.ReplicatedStorage.Remotes.ShootGun
@@ -186,52 +223,6 @@ end
 local function isInMatch()
     return (game.Players.LocalPlayer:GetAttribute("Match") or 0) > 0
 end
-
--- Function to clean up map folders
-local function initCleanup()
-    print("Starting map cleanup...")
-    
-    local hiddenMaps = game.ReplicatedStorage:FindFirstChild("HiddenMaps")
-    if not hiddenMaps then
-        print("HiddenMaps folder not found")
-        return
-    end
-    
-    local foldersToDelete = {"Borders", "Environment"}
-    local deletedCount = 0
-    
-    -- Iterate through all map folders
-    for _, mapFolder in pairs(hiddenMaps:GetChildren()) do
-        if mapFolder:IsA("Folder") then
-            print("Checking map:", mapFolder.Name)
-            
-            -- Delete specified folders within each map
-            for _, folderName in ipairs(foldersToDelete) do
-                local targetFolder = mapFolder:FindFirstChild(folderName)
-                if targetFolder then
-                    targetFolder:Destroy()
-                    deletedCount = deletedCount + 1
-                    print("Deleted:", mapFolder.Name .. "." .. folderName)
-                end
-            end
-        end
-    end
-    
-    -- print("Map cleanup completed. Deleted", deletedCount, "folders.")
-
-    if cansetfpscap then
-	   	setfpscap(15)
-	  end
-    -- game:GetService("RunService"):Set3dRenderingEnabled(false)
-
-    print("Frame rate capped to 15 FPS and 3D rendering disabled.")
-end
-
--- Schedule cleanup after 15 seconds
-spawn(function()
-    -- wait(15)
-    -- initCleanup()
-end)
 
 -- Main game loop
 local function startMainLoop()
