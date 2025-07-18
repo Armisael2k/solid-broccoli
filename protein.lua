@@ -104,60 +104,91 @@ end
 
 -- Function to shoot and hit enemies
 local function shootAtEnemies()
+    print("DEBUG: shootAtEnemies function called")
+    
     local player = game.Players.LocalPlayer
     local character = player.Character
     
     if not character then
-        print("Warning: No character found")
+        print("DEBUG: No character found")
         return
     end
+    print("DEBUG: Character found:", character.Name)
     
     local tool = character:FindFirstChildOfClass("Tool")
     if not tool then
-        print("Warning: No tool equipped")
+        print("DEBUG: No tool equipped")
         return
     end
+    print("DEBUG: Tool equipped:", tool.Name)
 
     local localPlayerTeam = player.Team
     if not localPlayerTeam then
-        print("Warning: Local player has no Team")
+        print("DEBUG: Local player has no Team")
         return
     end
+    print("DEBUG: Local player team:", localPlayerTeam.Name)
     
+    print("DEBUG: Searching for enemy players...")
     local enemyPlayers = {}
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        print("DEBUG: Checking player:", otherPlayer.Name)
+        print("  - Player team:", otherPlayer.Team and otherPlayer.Team.Name or "No team")
+        print("  - Same player?", otherPlayer == player)
+        print("  - Has team?", otherPlayer.Team ~= nil)
+        print("  - Different team?", otherPlayer.Team and otherPlayer.Team ~= localPlayerTeam)
+        
         if otherPlayer ~= player and otherPlayer.Team and otherPlayer.Team ~= localPlayerTeam then
+            print("  - This is an enemy! Checking character...")
+            print("  - Has character?", otherPlayer.Character ~= nil)
+            print("  - Character parent is workspace?", otherPlayer.Character and otherPlayer.Character.Parent == workspace)
+            print("  - Has HumanoidRootPart?", otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") ~= nil)
+            
             if otherPlayer.Character and otherPlayer.Character.Parent == workspace and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 table.insert(enemyPlayers, otherPlayer)
+                print("  - Enemy added to list!")
+            else
+                print("  - Enemy has invalid character")
             end
+        else
+            print("  - Not an enemy")
         end
     end
     
+    print("DEBUG: Total enemy players found:", #enemyPlayers)
+    
     if #enemyPlayers == 0 then
-        print("Warning: No enemy players found")
+        print("DEBUG: No enemy players found")
         return
     end
     
     print("Found", #enemyPlayers, "enemy players. Starting to shoot...")
     
     for _, enemyPlayer in ipairs(enemyPlayers) do
+        print("DEBUG: Processing enemy:", enemyPlayer.Name)
         if enemyPlayer.Character and enemyPlayer.Character:FindFirstChild("HumanoidRootPart") then
             print("Targeting enemy:", enemyPlayer.Name)
             
             local targetPosition = enemyPlayer.Character.HumanoidRootPart.Position
+            print("DEBUG: Target position:", targetPosition)
             
             tool:Activate()
+            print("DEBUG: Tool activated")
             
             local shootRemote = game.ReplicatedStorage.Remotes.ShootGun
             if shootRemote then
                 local characterRayOrigin = character.HumanoidRootPart.Position
+                print("DEBUG: Firing remote - Origin:", characterRayOrigin, "Target:", targetPosition)
                 shootRemote:FireServer(characterRayOrigin, targetPosition, enemyPlayer.Character.HumanoidRootPart, targetPosition)
+                print("DEBUG: Remote fired successfully")
             else
-                print("Warning: Shoot remote not found")
+                print("DEBUG: Shoot remote not found in ReplicatedStorage.Remotes")
             end
             
             print("Shot at enemy:", enemyPlayer.Name)
             wait(0.1)
+        else
+            print("DEBUG: Enemy", enemyPlayer.Name, "has invalid character or HumanoidRootPart")
         end
     end
     
@@ -166,17 +197,7 @@ end
 
 -- Function to check if player is in match (has tool 2)
 local function isInMatch()
-    local player = game.Players.LocalPlayer
-    local backpack = player.Backpack
-    
-    local tools = {}
-    for _, item in pairs(backpack:GetChildren()) do
-        if item:IsA("Tool") then
-            table.insert(tools, item)
-        end
-    end
-    
-    return #tools >= 2
+    return (game.Players.LocalPlayer:GetAttribute("Match") or 0) > 0
 end
 
 -- Main game loop
@@ -199,10 +220,8 @@ local function startMainLoop()
         while true do
             if isInMatch() then
                 equipGun()
-                wait(1)
-            else
-                wait(1) -- Wait when not in match to avoid excessive checking
             end
+            wait(1)
         end
     end)
     
