@@ -65,6 +65,8 @@ local function teleportToPad(username)
         else
             warn("No valid pad found for team" .. padIx)
         end
+    else
+      warn("No team found for username: " .. username)
     end
 end
 
