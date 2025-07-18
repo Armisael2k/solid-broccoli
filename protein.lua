@@ -279,6 +279,7 @@ local function startMainLoop()
 end
 
 -- Start the main loop
+wait(15) -- Small delay before starting main loop
 startMainLoop()
 
 print("Script execution completed. Main loop is now running.")
